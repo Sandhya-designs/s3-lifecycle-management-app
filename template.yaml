@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Serverless web app integrated with an existing S3 lifecycle bucket.
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: company-documents-sandhya-2026
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        BUCKET_NAME: !Ref BucketName
+        PREFIX: documents/
+
+Resources:
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: S3 Lifecycle Management API
+          version: '1.0'
+        paths: {}
+
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowHeaders:
+          - content-type
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+
+  LifecycleAppFunction:
+    Type: AWS::Serverless::Function
+
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - index.js
+
+    Properties:
+      FunctionName: s3-lifecycle-management-app
+      CodeUri: src/
+      Handler: index.handler
+
+      Policies:
+        - Statement:
+            - Sid: ListDocumentsAndReadLifecycle
+              Effect: Allow
+              Action:
+                - s3:ListBucket
+                - s3:GetLifecycleConfiguration
+              Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}
+
+            - Sid: ManageDocuments
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub arn:${AWS::Partition}:s3:::${BucketName}/documents/*
+
+      Events:
+
+        Home:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: GET
+
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/health
+            Method: GET
+
+        Objects:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/objects
+            Method: GET
+
+        UploadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/upload-url
+            Method: POST
+
+        DownloadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/download-url
+            Method: GET
+
+        Lifecycle:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/lifecycle
+            Method: GET
+
+Outputs:
+
+  WebUrl:
+    Description: Web application URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/
+
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com

@@ -1,0 +1,14 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "s3-lifecycle-management-app"
+resolve_s3 = true
+s3_prefix = "s3-lifecycle-management-app"
+region = "ap-southeast-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "BucketName=\"company-documents-sandhya-2026\""
+image_repositories = []
+
+[default.global.parameters]
+region = "ap-southeast-2"
